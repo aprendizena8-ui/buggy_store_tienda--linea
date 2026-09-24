@@ -1,6 +1,7 @@
 class TiendaOnline:
     # Sistema básico de gestión de inventario y ventas
     
+
     # ERROR: Usar {} como valor por defecto hacia que TODAS las tiendas
     # compartieran el mismo diccionario. Por eso tienda2 tenia el inventario de tienda1.
     # CORREGIDO: Se usa None y se crea un diccionario nuevo dentro del metodo,
@@ -9,6 +10,10 @@ class TiendaOnline:
         if inventario_inicial is None:
             inventario_inicial = {}
         self.inventario = inventario_inicial
+
+    def __init__(self, inventario_inicial=None):
+        self.inventario = {} if inventario_inicial is None else dict(inventario_inicial)
+
         self.ventas_totales = 0.0
 
     def agregar_producto(self, id_producto, nombre, precio, cantidad):
@@ -29,24 +34,50 @@ class TiendaOnline:
             id_prod = item['id_producto']
             cant_comprada = item['cantidad']
 
+# ERROR: Se busca el producto directamente sin verificar si existe en el inventario.
+# Si el ID no está, Python lanza un KeyError y el sistema colapsa.
+# SOLUCIÓN: Validar primero con 'if id_prod not in self.inventario' y lanzar un ValueError controlado.
+
+            if id_prod not in self.inventario:
+                raise ValueError(f"El producto {id_prod} no existe en el inventario")
+                
             producto = self.inventario[id_prod]
-            
+
+            # --- CORRECCIÓN BUG 4: Validación de stock insuficiente ---
+            if cant_comprada > producto['cantidad']:
+                raise ValueError(f"No hay suficiente stock para el producto {producto['nombre']}")
+
             # Actualizamos inventario y sumamos al total
             producto['cantidad'] -= cant_comprada
             total_pedido += producto['precio'] * cant_comprada
 
-        # Aplicar descuento si el cupón es válido (20% de descuento)
+        # --- CORRECCIÓN BUG 3: Descuento correcto ---
+        # (Corrección: Se cambió de 1.20 a 0.80 para descontar el 20%)
         if cupon_descuento == "SENA2026":
-            total_pedido = total_pedido * 1.20
+            total_pedido = total_pedido * 0.80
+
+        # Registrar la venta (se corrigió la letra 'I' mayúscula a 'l' minúscula)
+        self.ventas_totales += total_pedido 
+
 
         # Registrar la venta
-        self.ventas_totaIes += total_pedido 
+        # ERROR: Se escribio "ventas_totaIes" con "I" mayuscula, pero en el __init__
+        # el atributo se llama "ventas_totales" con "l" minuscula. Python no encontraba
+        # el atributo y el sistema colapsaba con AttributeError.
+        # CORREGIDO: Se cambio la "I" por "l" para que coincida con el __init__
+        self.ventas_totales += total_pedido 
         
+
+
         return total_pedido
 
     def limpiar_agotados(self):
         """Elimina del inventario los productos con cantidad 0 o menor."""
-        for id_producto in self.inventario.keys():
+
+# ERROR: No se puede modificar el diccionario mientras se itera sobre él.
+# Esto lanza un RuntimeError y colapsa el sistema. Se debe iterar sobre una copia.
+# SOLUCIÓN: Recorrer una copia de las llaves usando list().
+        for id_producto in list(self.inventario.keys()):
             if self.inventario[id_producto]['cantidad'] <= 0:
                 del self.inventario[id_producto]
 
